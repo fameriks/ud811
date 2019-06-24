@@ -2,6 +2,33 @@
 (function() {
   'use strict';
 
+  var injectedForecast = {
+    key: 'newyork',
+    label: 'New York, NY',
+    currently: {
+      time: 1453489481,
+      summary: 'Clear',
+      icon: 'partly-cloudy-day',
+      temperature: 52.74,
+      apparentTemperature: 74.34,
+      precipProbability: 0.20,
+      humidity: 0.77,
+      windBearing: 125,
+      windSpeed: 1.52
+    },
+    daily: {
+      data: [
+        {icon: 'clear-day', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'rain', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'snow', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'sleet', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'fog', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'wind', temperatureMax: 55, temperatureMin: 34},
+        {icon: 'partly-cloudy-day', temperatureMax: 55, temperatureMin: 34}
+      ]
+    }
+  };
+
   var weatherAPIUrlBase = 'https://publicdata-weather.firebaseio.com/';
 
   var app = {
@@ -18,13 +45,33 @@
 
   /*****************************************************************************
    *
+   * Client side storage access
+   *
+   ****************************************************************************/
+
+  const storage = {};
+
+  storage.pinUserCity = async (cityKey) => {
+    const userCities = await localforage.getItem('pinnedCities') || []
+    if (!userCities.includes(cityKey)) {
+      await localforage.setItem('pinnedCities', [...userCities, cityKey])
+    }
+  }
+
+  storage.getPinnedCities = async () => {
+    return await localforage.getItem('pinnedCities') || []
+  }
+
+
+  /*****************************************************************************
+   *
    * Event listeners for UI elements
    *
    ****************************************************************************/
 
   /* Event listener for refresh button */
-  document.getElementById('butRefresh').addEventListener('click', function() {
-    app.updateForecasts();
+  document.getElementById('butRefresh').addEventListener('click', async function() {
+    await app.updateForecasts();
   });
 
   /* Event listener for add new city button */
@@ -34,13 +81,13 @@
   });
 
   /* Event listener for add city button in add city dialog */
-  document.getElementById('butAddCity').addEventListener('click', function() {
+  document.getElementById('butAddCity').addEventListener('click', async function() {
     var select = document.getElementById('selectCityToAdd');
     var selected = select.options[select.selectedIndex];
     var key = selected.value;
     var label = selected.textContent;
+    await storage.pinUserCity(key);
     app.getForecast(key, label);
-    app.selectedCities.push({key: key, label: label});
     app.toggleAddDialog(false);
   });
 
@@ -143,11 +190,22 @@
   };
 
   // Iterate all of the cards and attempt to get the latest forecast data
-  app.updateForecasts = function() {
-    var keys = Object.keys(app.visibleCards);
-    keys.forEach(function(key) {
-      app.getForecast(key);
+  app.updateForecasts = async function() {
+    const cities = await storage.getPinnedCities()    
+    cities.forEach(function(key) {
+      app.getForecast(key, key);
     });
   };
+
+  async function initUserCities() {
+    const cities = await storage.getPinnedCities()
+    if (cities.length === 0) {
+      app.updateForecastCard(injectedForecast)
+    } else {
+      await app.updateForecasts()
+    }
+  }
+
+  initUserCities()
 
 })();
