@@ -1,7 +1,10 @@
 const CACHE_VERSION = 1;
 const CURRENT_CACHES = {
-  prefetch: 'prefetch-cache-v' + CACHE_VERSION
+  prefetch: 'prefetch-cache-v' + CACHE_VERSION,
+  weatherData: 'weatherData-cache-v' + CACHE_VERSION,
 };
+
+const weatherAPIUrlBase = 'https://publicdata-weather.firebaseio.com/';
 
 self.addEventListener('install', function (event) {
   const urlsToPrefetch = [
@@ -38,6 +41,26 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function (event) {
+  const isWeatherDataFetch = event.request.url.startsWith(weatherAPIUrlBase)
+  if (isWeatherDataFetch) {
+    const cachePromise = caches.match(event.request)
+      .then(response => response ? response : new Promise(() => {}))
+
+    const fetchPromise = fetch(event.request).then(response => {
+      const responseToCache = response.clone();
+
+      caches.open(CURRENT_CACHES['weatherData'])
+        .then(function (cache) {
+          cache.put(event.request, responseToCache);
+        });
+      
+      return response;
+
+    })
+
+    return event.respondWith(Promise.race([cachePromise, fetchPromise]))
+  }
+
   event.respondWith(
     caches.match(event.request).then(function (response) {
       // Cache hit - return response

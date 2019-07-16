@@ -185,21 +185,15 @@
 
   // Gets a forecast for a specific city and update the card with the data
   app.getForecast = function(key, label) {
-    var url = weatherAPIUrlBase + key + '.json';
-    // Make the XHR to get the data, then update the card
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = function() {
-      if (request.readyState === XMLHttpRequest.DONE) {
-        if (request.status === 200) {
-          var response = JSON.parse(request.response);
-          response.key = key;
-          response.label = label;
-          app.updateForecastCard(response);
-        }
-      }
-    };
-    request.open('GET', url);
-    request.send();
+    const url = weatherAPIUrlBase + key + '.json'
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        data.key = key
+        data.label = label
+
+        app.updateForecastCard(data)
+      })
   };
 
   // Iterate all of the cards and attempt to get the latest forecast data
